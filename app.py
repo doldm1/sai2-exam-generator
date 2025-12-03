@@ -10,8 +10,9 @@ from dotenv import load_dotenv
 from pathlib import Path
 import json
 
-from utils.pdf_parser import extract_text_from_pdf, get_pdf_metadata
+from utils.pdf_parser import extract_text_from_pdf, get_pdf_metadata, extract_learning_objectives
 from utils.question_gen import generate_questions, grade_answer, check_api_key
+from utils.analytics import display_performance_summary, get_study_recommendation, calculate_performance_stats
 
 # Load environment variables
 load_dotenv()
@@ -38,6 +39,10 @@ if 'show_feedback' not in st.session_state:
     st.session_state.show_feedback = {}
 if 'api_key' not in st.session_state:
     st.session_state.api_key = os.getenv('OPENAI_API_KEY', '')
+if 'detected_objectives' not in st.session_state:
+    st.session_state.detected_objectives = None
+if 'prefilled_objectives' not in st.session_state:
+    st.session_state.prefilled_objectives = ''
 
 
 def main():
@@ -105,9 +110,8 @@ def main():
 
 
 def upload_tab():
-    """Handle PDF upload and parsing."""
-    st.header("Upload Course Material")
-    st.markdown("Upload a PDF file containing your course slides or notes.")
+    st.header("📚 Upload Your Study Material")
+    st.write("Upload your lecture slides, notes, or course PDFs to generate personalized practice questions.")
     
     uploaded_file = st.file_uploader(
         "Choose a PDF file",
@@ -136,7 +140,14 @@ def upload_tab():
                 st.session_state.pdf_content = pages_content
                 st.session_state.pdf_metadata = metadata
                 
-                st.success(f"✓ Extracted {total_pages} pages")
+                # Auto-detect learning objectives
+                detected = extract_learning_objectives(pages_content)
+                st.session_state.detected_objectives = detected
+                
+                st.success(f"✅ Material loaded! Found {total_pages} pages. Ready to generate questions. 📚")
+                
+                if detected:
+                    st.success(f"🔍 Automatisch {len(detected)} mögliche Lernziele erkannt!")
                 
                 # Show preview
                 with st.expander("📄 Preview extracted content"):
@@ -154,7 +165,7 @@ def upload_tab():
 
 def generate_tab(num_questions, topic_filter):
     """Generate exam questions from uploaded content."""
-    st.header("Generate Questions")
+    st.header("🧠 Start Practice Session")
     
     if not st.session_state.pdf_content:
         st.warning("⚠️ Please upload a PDF file first in the Upload tab.")
@@ -164,7 +175,34 @@ def generate_tab(num_questions, topic_filter):
         st.warning("⚠️ Please enter your OpenAI API key in the sidebar.")
         return
     
-    st.markdown("Generate practice exam questions based on your uploaded material.")
+    st.markdown("Generate personalized practice questions to test your understanding of the material.")
+    
+    # Show detected objectives if found
+    if st.session_state.detected_objectives:
+        with st.expander("🔍 Erkannte Lernziele (automatisch gefunden)", expanded=False):
+            st.info("Das Tool hat diese möglichen Lernziele im PDF gefunden:")
+            for obj in st.session_state.detected_objectives:
+                st.markdown(f"- {obj}")
+            
+            if st.button("📋 Erkannte Lernziele übernehmen"):
+                st.session_state.prefilled_objectives = "\n".join(f"- {obj}" for obj in st.session_state.detected_objectives)
+                st.rerun()
+    
+    # Lernziele Eingabe (optional)
+    st.subheader("🎯 Learning Objectives (optional)")
+    
+    # Pre-fill if user clicked button
+    default_value = st.session_state.prefilled_objectives
+    
+    learning_objectives = st.text_area(
+        "Which learning objectives should the questions cover?",
+        value=default_value,
+        placeholder="z.B.:\n- Verstehen von Konzept X\n- Anwenden von Methode Y\n- Analysieren von Problem Z\n\nOder lass das Feld leer für allgemeine Fragen.",
+        height=120,
+        help="Optional: Gib Lernziele ein oder nutze die automatisch erkannten. Leer lassen = allgemeine Fragen aus dem Material."
+    )
+    
+    st.divider()
     
     col1, col2 = st.columns([3, 1])
     
@@ -172,8 +210,8 @@ def generate_tab(num_questions, topic_filter):
         st.info(f"📚 Document ready: {st.session_state.pdf_metadata.get('pages', 'N/A')} pages")
     
     with col2:
-        if st.button("✨ Generate Questions", type="primary", use_container_width=True):
-            generate_questions_action(num_questions, topic_filter)
+        if st.button("🚀 Start Practice", type="primary", use_container_width=True):
+            generate_questions_action(num_questions, topic_filter, learning_objectives)
     
     # Show existing questions if any
     if st.session_state.questions:
@@ -186,15 +224,20 @@ def generate_tab(num_questions, topic_filter):
                 st.divider()
 
 
-def generate_questions_action(num_questions, topic_filter):
+def generate_questions_action(num_questions, topic_filter, learning_objectives=None):
     """Action to generate questions using the LLM."""
     with st.spinner("🤖 Generating questions... This may take 15-30 seconds..."):
         try:
+            # Store learning objectives in session state for later reference
+            if learning_objectives:
+                st.session_state.learning_objectives = learning_objectives
+            
             questions = generate_questions(
                 pages_content=st.session_state.pdf_content,
                 api_key=st.session_state.api_key,
                 num_questions=num_questions,
                 topic=topic_filter if topic_filter else None,
+                learning_objectives=learning_objectives if learning_objectives else None,
                 temperature=0.3
             )
             
@@ -203,7 +246,7 @@ def generate_questions_action(num_questions, topic_filter):
             st.session_state.user_answers = {}
             st.session_state.show_feedback = {}
             
-            st.success(f"✓ Successfully generated {len(questions)} questions!")
+            st.success(f"🎉 Your practice session is ready! {len(questions)} questions generated!")
             st.balloons()
             
         except Exception as e:
@@ -212,7 +255,7 @@ def generate_questions_action(num_questions, topic_filter):
 
 def practice_tab():
     """Practice with generated questions."""
-    st.header("Practice Questions")
+    st.header("📊 Check Your Knowledge")
     
     if not st.session_state.questions:
         st.warning("⚠️ Please generate questions first in the Generate tab.")
@@ -313,7 +356,7 @@ def show_source_modal(question):
 
 
 def display_summary():
-    """Display summary of answers."""
+    """Display summary of answers with performance analysis."""
     if not st.session_state.user_answers:
         return
     
@@ -332,6 +375,43 @@ def display_summary():
     with col3:
         accuracy = (correct / answered * 100) if answered > 0 else 0
         st.metric("Accuracy", f"{accuracy:.1f}%")
+    
+    # Add performance summary if all questions answered
+    if answered == total:
+        st.markdown("---")
+        
+        # Build results list for analytics
+        results = []
+        for q_id, answer_data in st.session_state.user_answers.items():
+            question = st.session_state.questions[q_id]
+            results.append({
+                'question': question['question'],
+                'is_correct': answer_data['is_correct']
+            })
+        
+        # Display performance summary
+        display_performance_summary(results)
+        
+        # Study recommendation
+        stats = calculate_performance_stats(results)
+        recommendation = get_study_recommendation(stats['percentage'])
+        
+        st.markdown("### 📚 Next Steps")
+        st.info(recommendation)
+        
+        # Action buttons
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔄 Generate More Questions", use_container_width=True):
+                # Reset for new practice session
+                st.session_state.questions = []
+                st.session_state.user_answers = {}
+                st.session_state.show_feedback = {}
+                st.session_state.current_question_idx = 0
+                st.rerun()
+        with col2:
+            if st.button("📄 Review Source Material", use_container_width=True):
+                st.info("💡 Tip: Re-read the sections related to your weak areas in the original PDF!")
 
 
 if __name__ == "__main__":

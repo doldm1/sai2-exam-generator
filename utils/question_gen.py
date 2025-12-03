@@ -19,7 +19,8 @@ def generate_questions(
     api_key: str,
     num_questions: int = 5,
     topic: Optional[str] = None,
-    model: str = "gpt-4o-mini",
+    learning_objectives: Optional[str] = None,
+    model: str = "gpt-4o",
     temperature: float = 0.3
 ) -> List[Dict]:
     """
@@ -30,6 +31,7 @@ def generate_questions(
         api_key: OpenAI API key
         num_questions: Number of questions to generate
         topic: Optional topic filter
+        learning_objectives: Optional learning objectives to address
         model: OpenAI model to use
         temperature: Temperature for generation (0.0-1.0, lower = more focused)
     
@@ -51,7 +53,7 @@ def generate_questions(
     client = openai.OpenAI(api_key=api_key)
     
     # Generate the prompt
-    user_prompt = get_question_generation_prompt(pages_content, num_questions, topic)
+    user_prompt = get_question_generation_prompt(pages_content, num_questions, topic, learning_objectives)
     
     try:
         # Call OpenAI API
@@ -96,7 +98,7 @@ def grade_answer(
     user_answer: str,
     explanation: str,
     api_key: str,
-    model: str = "gpt-4o-mini"
+    model: str = "gpt-4o"
 ) -> Dict[str, any]:
     """
     Grade a student's answer using OpenAI's API.

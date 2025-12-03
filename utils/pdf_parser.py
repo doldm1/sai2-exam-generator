@@ -4,8 +4,9 @@ Extracts text content page by page from PDF files.
 """
 
 import fitz  # PyMuPDF
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 import os
+import re
 
 
 def extract_text_from_pdf(pdf_path: str) -> Tuple[Dict[int, str], int]:
@@ -121,3 +122,64 @@ def extract_page_text(pdf_path: str, page_number: int) -> str:
         return text
     except Exception as e:
         return f"Error extracting page {page_number}: {str(e)}"
+
+
+def extract_learning_objectives(pages_content: Dict[int, str]) -> List[str]:
+    """
+    Extract learning objectives from the first few pages of course material.
+    
+    Args:
+        pages_content: Dictionary mapping page numbers to text content
+    
+    Returns:
+        List of detected learning objective strings
+    """
+    objectives = []
+    
+    # Define patterns to detect learning objectives sections (German and English)
+    section_patterns = [
+        r'lernziele?[:.\s]',
+        r'learning objectives?[:.\s]',
+        r'learning outcomes?[:.\s]',
+        r'nach diesem (kapitel|modul|kurs)',
+        r'after this (chapter|module|course)',
+        r'by the end of this',
+        r'students? (will|can|should)',
+        r'you (will|can|should)',
+        r'sie können',
+        r'main learning (outcomes?|objectives?)',
+    ]
+    
+    # Look at first 3 pages (objectives usually at beginning)
+    pages_to_check = sorted([p for p in pages_content.keys() if p <= 3])
+    
+    for page_num in pages_to_check:
+        text = pages_content[page_num]
+        text_lower = text.lower()
+        
+        # Check if this page contains a learning objectives section
+        section_found = any(re.search(pattern, text_lower) for pattern in section_patterns)
+        
+        if section_found:
+            # Extract bullet points or numbered items that look like learning objectives
+            # Match lines that start with bullet, number, or "You can/Sie können"
+            objective_patterns = [
+                r'(?:^|\n)[\s]*[•\-\*●]\s*(.+?)(?:\n|$)',  # Bullet points
+                r'(?:^|\n)[\s]*\d+[\.\)]\s*(.+?)(?:\n|$)',  # Numbered lists
+                r'(?:^|\n)[\s]*(You (?:can|will|should) .+?)(?:\n|$)',  # "You can..."
+                r'(?:^|\n)[\s]*(Sie können .+?)(?:\n|$)',  # "Sie können..."
+                r'(?:^|\n)[\s]*(Students? (?:will|can|should) .+?)(?:\n|$)',  # "Students will..."
+            ]
+            
+            for pattern in objective_patterns:
+                matches = re.finditer(pattern, text, re.IGNORECASE | re.MULTILINE)
+                for match in matches:
+                    obj = match.group(1).strip()
+                    # Filter: must be substantial (10-300 chars) and not too generic
+                    if 10 <= len(obj) <= 300 and obj not in objectives:
+                        # Clean up: remove common prefixes
+                        obj = re.sub(r'^(You can|Sie können|Students? (?:will|can|should))\s+', '', obj, flags=re.IGNORECASE)
+                        objectives.append(obj)
+    
+    # Return up to 5 unique objectives
+    return objectives[:5]
