@@ -56,6 +56,7 @@ def extract_text_from_pdf(pdf_path: str) -> Tuple[Dict[int, str], int]:
 def clean_text(text: str) -> str:
     """
     Clean extracted text by removing excessive whitespace and normalizing.
+    PRESERVES newlines for learning objectives extraction!
     
     Args:
         text: Raw text extracted from PDF
@@ -63,13 +64,18 @@ def clean_text(text: str) -> str:
     Returns:
         Cleaned text
     """
-    # Replace multiple spaces with single space
-    text = " ".join(text.split())
-    
-    # Remove excessive newlines (keep paragraph structure)
+    # Split into lines first
     lines = text.split('\n')
-    lines = [line.strip() for line in lines if line.strip()]
-    text = '\n'.join(lines)
+    
+    # Clean each line individually (remove excessive spaces)
+    cleaned_lines = []
+    for line in lines:
+        line = ' '.join(line.split())  # Remove multiple spaces within line
+        if line:  # Keep non-empty lines
+            cleaned_lines.append(line)
+    
+    # Rejoin with newlines preserved
+    text = '\n'.join(cleaned_lines)
     
     return text
 
@@ -86,8 +92,13 @@ def get_pdf_metadata(pdf_path: str) -> dict:
     """
     try:
         doc = fitz.open(pdf_path)
+        
+        # Always use filename as title (more reliable than PDF metadata)
+        filename = os.path.basename(pdf_path)
+        title = os.path.splitext(filename)[0]
+        
         metadata = {
-            'title': doc.metadata.get('title', 'Unknown'),
+            'title': title,
             'author': doc.metadata.get('author', 'Unknown'),
             'subject': doc.metadata.get('subject', ''),
             'pages': len(doc),
@@ -137,10 +148,11 @@ def extract_learning_objectives(pages_content: Dict[int, str]) -> List[str]:
     objectives = []
     
     # Define patterns to detect learning objectives sections (German and English)
+    # Define patterns to detect learning objectives sections (German and English)
     section_patterns = [
-        r'lernziele?[:.\s]',
-        r'learning objectives?[:.\s]',
-        r'learning outcomes?[:.\s]',
+        r'lernziele?',
+        r'learning objectives?',
+        r'learning outcomes?',
         r'nach diesem (kapitel|modul|kurs)',
         r'after this (chapter|module|course)',
         r'by the end of this',
@@ -164,11 +176,19 @@ def extract_learning_objectives(pages_content: Dict[int, str]) -> List[str]:
             # Extract bullet points or numbered items that look like learning objectives
             # Match lines that start with bullet, number, or "You can/Sie können"
             objective_patterns = [
-                r'(?:^|\n)[\s]*[•\-\*●]\s*(.+?)(?:\n|$)',  # Bullet points
+                r'(?:^|\n)[\s]*[•\-\*●◦]\s*(.+?)(?:\n|$)',  # Bullet points
                 r'(?:^|\n)[\s]*\d+[\.\)]\s*(.+?)(?:\n|$)',  # Numbered lists
                 r'(?:^|\n)[\s]*(You (?:can|will|should) .+?)(?:\n|$)',  # "You can..."
                 r'(?:^|\n)[\s]*(Sie können .+?)(?:\n|$)',  # "Sie können..."
                 r'(?:^|\n)[\s]*(Students? (?:will|can|should) .+?)(?:\n|$)',  # "Students will..."
+                r'(?:^|\n)[\s]*(Define .+?)(?:\n|$)',  # Action verbs
+                r'(?:^|\n)[\s]*(Explain .+?)(?:\n|$)',
+                r'(?:^|\n)[\s]*(Understand .+?)(?:\n|$)',
+                r'(?:^|\n)[\s]*(Describe .+?)(?:\n|$)',
+                r'(?:^|\n)[\s]*(Identify .+?)(?:\n|$)',
+                r'(?:^|\n)[\s]*(Recognize .+?)(?:\n|$)',
+                r'(?:^|\n)[\s]*(Apply .+?)(?:\n|$)',
+                r'(?:^|\n)[\s]*(Summarize .+?)(?:\n|$)',
             ]
             
             for pattern in objective_patterns:

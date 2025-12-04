@@ -9,7 +9,25 @@ CRITICAL RULES:
 2. Every question MUST cite the exact page number it comes from
 3. Do NOT use external knowledge or information not in the material
 4. If the material doesn't contain enough information for a question, skip it
-5. Create questions that test understanding, not just memorization
+5. Create questions that test understanding and APPLICATION, not just memorization
+
+QUESTION QUALITY - FEW-SHOT EXAMPLES:
+
+GOOD QUESTIONS test application and understanding:
+✅ "A system needs to process 10,000 tokens but has a 4,000 token limit. Which approach would be most effective?"
+✅ "Based on the described scenario, which technique would best address the problem?"
+✅ "In a situation where X constraint exists, how would you apply concept Y?"
+
+BAD QUESTIONS test only recall and definitions:
+❌ "What is the definition of concept X?"
+❌ "List the three components of system Y."
+❌ "What does the course material say about topic Z?"
+
+KEY DIFFERENCES:
+- Good questions present scenarios requiring decision-making
+- Good questions test whether students can USE the knowledge
+- Bad questions only test if students memorized definitions
+- Bad questions can be answered by copy-pasting from the material
 
 DISTRACTOR QUALITY (VERY IMPORTANT):
 - Wrong answers (distractors) must be PLAUSIBLE but clearly incorrect
@@ -17,6 +35,19 @@ DISTRACTOR QUALITY (VERY IMPORTANT):
 - Avoid obviously wrong answers (e.g., completely unrelated topics)
 - Distractors should be of similar length and complexity as the correct answer
 - Use content from the same topic area to make distractors believable
+
+SOURCE EXCERPT QUALITY - CRITICAL:
+
+GOOD SOURCE EXCERPTS clearly connect answer to question:
+✅ "The COMPRESS strategy reduces token usage by summarizing content while preserving essential information."
+✅ "Chain-of-Thought prompting guides the model through step-by-step reasoning to reach accurate conclusions."
+
+BAD SOURCE EXCERPTS are vague or missing the key term:
+❌ "Summarization: LLM condenses content..." (missing "COMPRESS strategy" term)
+❌ "• Context Maintenance • Structured..." (list format, unclear connection)
+❌ "Memories... persistent storage..." (missing "WRITE" term entirely)
+
+The source excerpt is THE PROOF. Students must be able to read it and immediately understand which answer is correct and why.
 
 OUTPUT FORMAT:
 Return ONLY valid JSON with this exact structure (no markdown, no code blocks):
@@ -28,7 +59,7 @@ Return ONLY valid JSON with this exact structure (no markdown, no code blocks):
       "correct_answer": "A",
       "explanation": "Brief explanation of why this is correct (2-3 sentences)",
       "source_page": 5,
-      "source_excerpt": "Exact quote or paraphrase from the source material"
+      "source_excerpt": "Direct excerpt that MUST explicitly mention the key term/concept being tested (students need to verify the answer)"
     }
   ]
 }
@@ -122,7 +153,13 @@ Requirements for each question:
 - Only one correct answer
 - Question must be answerable using ONLY the material above
 - Include the source page number
-- Include a brief excerpt from the source material that supports the answer
+- CRITICAL - Source excerpt requirements:
+  * Must be a direct, continuous passage from the material (not a list or fragments)
+  * Must EXPLICITLY name the correct answer (if testing "WRITE strategy", the words "WRITE strategy" must appear)
+  * Must show WHY this is the correct answer (include the definition, use case, or key characteristic)
+  * Format: "The [correct answer] is/does [explanation that connects to the question]"
+  * Students should think: "I can see [correct answer] mentioned here and understand why it's correct"
+  * If the question asks for a SPECIFIC EXAMPLE or APPLICATION, the excerpt should contain that example or a clear description that matches it
 - Ensure distractors (wrong answers) are plausible but clearly incorrect
 
 Return the questions in the JSON format specified in your system instructions.

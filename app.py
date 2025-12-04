@@ -48,11 +48,11 @@ if 'prefilled_objectives' not in st.session_state:
 def main():
     """Main application function."""
     
-    st.title("📚 Exam Question Generator")
+    st.title("📚 TrustQuiz")
     st.markdown("Generate practice exam questions from your course materials with full source transparency.")
     
     # Info banner
-    st.info("ℹ️ Dieses Tool nutzt OpenAI's API. Hochgeladene PDFs werden zur Verarbeitung übertragen. Bitte keine vertraulichen Daten hochladen.")
+    st.info("ℹ️ This tool uses the OpenAI API. Uploaded PDFs will be sent for processing. Please do not upload any confidential data.")
     
     # Sidebar for settings
     with st.sidebar:
@@ -73,12 +73,6 @@ def main():
             else:
                 st.error("✗ API Key invalid")
         
-        st.divider()
-        
-        # Generation settings
-        st.subheader("Question Generation")
-        num_questions = st.slider("Number of questions", 1, 10, 5)
-        topic_filter = st.text_input("Topic filter (optional)", help="Leave empty for questions from all topics")
         
         st.divider()
         
@@ -103,7 +97,7 @@ def main():
         upload_tab()
     
     with tab2:
-        generate_tab(num_questions, topic_filter)
+        generate_tab(5, None)  # Default values, actual values set in the tab
     
     with tab3:
         practice_tab()
@@ -147,7 +141,7 @@ def upload_tab():
                 st.success(f"✅ Material loaded! Found {total_pages} pages. Ready to generate questions. 📚")
                 
                 if detected:
-                    st.success(f"🔍 Automatisch {len(detected)} mögliche Lernziele erkannt!")
+                    st.success(f"🔍 Automatically detected {len(detected)} learning objectives!")
                 
                 # Show preview
                 with st.expander("📄 Preview extracted content"):
@@ -160,7 +154,15 @@ def upload_tab():
                 st.error(f"Error parsing PDF: {str(e)}")
     
     elif st.session_state.pdf_content:
-        st.info(f"✓ Document loaded: {st.session_state.pdf_metadata.get('pages', 'N/A')} pages")
+        st.success(f"✓ Document loaded: {st.session_state.pdf_metadata.get('pages', 'N/A')} pages")
+        
+        # Add button to proceed
+        st.markdown("---")
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button("🚀 Continue to Generate Questions", type="primary", use_container_width=True):
+                # Switch to generate tab
+                st.rerun()
 
 
 def generate_tab(num_questions, topic_filter):
@@ -175,16 +177,33 @@ def generate_tab(num_questions, topic_filter):
         st.warning("⚠️ Please enter your OpenAI API key in the sidebar.")
         return
     
+    # Number of questions selector (moved from sidebar)
+    num_questions = st.slider(
+        "How many questions do you want to practice?",
+        min_value=1,
+        max_value=20,
+        value=5,
+        help="Select the number of practice questions to generate"
+    )
+    
+    if not st.session_state.pdf_content:
+        st.warning("⚠️ Please upload a PDF file first in the Upload tab.")
+        return
+    
+    if not st.session_state.api_key:
+        st.warning("⚠️ Please enter your OpenAI API key in the sidebar.")
+        return
+    
     st.markdown("Generate personalized practice questions to test your understanding of the material.")
     
     # Show detected objectives if found
     if st.session_state.detected_objectives:
-        with st.expander("🔍 Erkannte Lernziele (automatisch gefunden)", expanded=False):
-            st.info("Das Tool hat diese möglichen Lernziele im PDF gefunden:")
+        with st.expander("🔍 Detected learning objectives (auto-detected)", expanded=False):
+            st.info("The tool found these potential learning objectives in the PDF:")
             for obj in st.session_state.detected_objectives:
                 st.markdown(f"- {obj}")
             
-            if st.button("📋 Erkannte Lernziele übernehmen"):
+            if st.button("📋 Use detected objectives"):
                 st.session_state.prefilled_objectives = "\n".join(f"- {obj}" for obj in st.session_state.detected_objectives)
                 st.rerun()
     
@@ -197,9 +216,9 @@ def generate_tab(num_questions, topic_filter):
     learning_objectives = st.text_area(
         "Which learning objectives should the questions cover?",
         value=default_value,
-        placeholder="z.B.:\n- Verstehen von Konzept X\n- Anwenden von Methode Y\n- Analysieren von Problem Z\n\nOder lass das Feld leer für allgemeine Fragen.",
+        placeholder="e.g.:\n- Understand concept X\n- Apply method Y\n- Analyze problem Z\n\nOr leave blank for general questions from the material.",
         height=120,
-        help="Optional: Gib Lernziele ein oder nutze die automatisch erkannten. Leer lassen = allgemeine Fragen aus dem Material."
+        help="Optional: Enter learning objectives or use the auto-detected ones. Leave empty for general questions."
     )
     
     st.divider()
@@ -211,7 +230,7 @@ def generate_tab(num_questions, topic_filter):
     
     with col2:
         if st.button("🚀 Start Practice", type="primary", use_container_width=True):
-            generate_questions_action(num_questions, topic_filter, learning_objectives)
+            generate_questions_action(num_questions, topic_filter if topic_filter else None, learning_objectives)
     
     # Show existing questions if any
     if st.session_state.questions:
@@ -337,21 +356,45 @@ def practice_tab():
 
 def show_source_modal(question):
     """Display source information for a question."""
-    st.info(f"**Source Page:** {question['source_page']}")
-    
-    if 'source_excerpt' in question and question['source_excerpt']:
-        st.markdown("**Source Excerpt:**")
-        st.code(question['source_excerpt'], language=None)
+    # Beautiful card-style source display
+    with st.container():
+        st.markdown("""
+        <style>
+        .source-card {
+            background-color: #f0f8ff;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .source-page {
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        st.markdown(f"""
+        <div class="source-card">
+            <h4 style='margin-top: 0; color: #2c3e50;'>📄 Source Reference</h4>
+            <p><span class="source-page">Page: {question['source_page']}</span></p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if 'source_excerpt' in question and question['source_excerpt']:
+            st.markdown("**📖 Source Excerpt:**")
+            st.info(question['source_excerpt'])
     
     # Show full page content
     if st.session_state.pdf_content and question['source_page'] in st.session_state.pdf_content:
-        with st.expander("View full page content"):
+        with st.expander("📑 View full page content"):
             page_text = st.session_state.pdf_content[question['source_page']]
             st.text_area(
                 f"Page {question['source_page']} content:",
                 value=page_text,
                 height=300,
-                disabled=True
+                disabled=True,
+                key=f"source_page_{question['source_page']}_{hash(question['question'])}"  # Unique key!
             )
 
 
