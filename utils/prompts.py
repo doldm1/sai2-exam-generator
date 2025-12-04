@@ -160,6 +160,7 @@ Requirements for each question:
   * Format: "The [correct answer] is/does [explanation that connects to the question]"
   * Students should think: "I can see [correct answer] mentioned here and understand why it's correct"
   * If the question asks for a SPECIFIC EXAMPLE or APPLICATION, the excerpt should contain that example or a clear description that matches it
+  * The excerpt MUST contain the EXACT mechanism mentioned in the answer
 - Ensure distractors (wrong answers) are plausible but clearly incorrect
 
 Return the questions in the JSON format specified in your system instructions.
