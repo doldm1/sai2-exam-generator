@@ -19,10 +19,152 @@ load_dotenv()
 
 # Page configuration
 st.set_page_config(
-    page_title="Exam Question Generator",
+    page_title="TrustQuiz",
     page_icon="📚",
-    layout="wide"
+    layout="wide",
 )
+
+# Custom CSS styling
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap');
+    
+    * {
+        font-family: 'Roboto', sans-serif !important;
+    }
+    
+    html, body, [class*="css"] {
+        font-family: 'Roboto', sans-serif !important;
+    }
+    
+    /* Main title styling */
+    h1 {
+        color: #1a1a1a;
+        font-size: 2.8em;
+        margin-bottom: 10px;
+        font-weight: 700;
+    }
+    
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 20px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        font-size: 1.2em;
+        padding: 12px 24px;
+        font-weight: 500;
+    }
+    
+    /* Header styling */
+    h2 {
+        color: #2c2c2c;
+        font-size: 1.8em;
+        margin-top: 20px;
+        font-weight: 600;
+    }
+    
+    h3 {
+        color: #e67e22;
+        font-size: 1.5em;
+        font-weight: 600;
+    }
+    
+    h4 {
+        color: #333;
+        font-size: 1.3em;
+        font-weight: 600;
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        background-color: #e67e22;
+        color: white;
+        font-size: 1.1em;
+        padding: 12px 24px;
+        border-radius: 6px;
+        border: none;
+        font-weight: 600;
+        font-family: 'Roboto', sans-serif !important;
+    }
+    
+    .stButton > button:hover {
+        background-color: #d35400;
+        color: white !important;
+    }
+    
+    /* Info/warning/error boxes */
+    .stAlert {
+        font-size: 1.05em;
+        padding: 15px;
+    }
+    
+    /* Text area and input */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea {
+        font-size: 1.1em;
+        font-family: 'Roboto', sans-serif !important;
+    }
+    
+    /* Metric styling */
+    .stMetric {
+        background-color: #f5f5f5;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .stMetric > div:first-child {
+        font-size: 1.3em;
+        color: #333;
+        font-weight: 500;
+    }
+    
+    .stMetric > div:last-child {
+        font-size: 1.8em;
+        color: #e67e22;
+        font-weight: 700;
+    }
+
+    /* Hide the top stripe/header */
+    .stAppHeader {
+        display: none;
+    }
+
+    /* Alternative: hide just the decoration line */
+    header[data-testid="stHeader"] {
+        display: none;
+    }
+
+    /* Remove top padding */
+    .appview-container {
+        padding-top: 0 !important;
+    }
+
+    /* Dark mode adjustments */
+    @media (prefers-color-scheme: dark) {
+        h1 {
+            color: #ffffff !important;
+        }
+        
+        h2 {
+            color: #e8e8e8 !important;
+        }
+        
+        h4 {
+            color: #e8e8e8 !important;
+        }
+
+        .stMetric > div:first-child {
+            color: #e8e8e8 !important;
+        }
+
+        .stMetric {
+            background-color: #2b2b2b !important;
+        }
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # Initialize session state
 if 'pdf_content' not in st.session_state:
@@ -48,15 +190,19 @@ if 'prefilled_objectives' not in st.session_state:
 def main():
     """Main application function."""
     
-    st.title("📚 TrustQuiz")
-    st.markdown("Generate practice exam questions from your course materials with full source transparency.")
+    st.title("TrustQuiz")
+    st.markdown("<p style='font-size: 1.2em; color: #555;'>Generate practice exam questions from your course materials with full source transparency.</p>", unsafe_allow_html=True)
     
     # Info banner
-    st.info("ℹ️ This tool uses the OpenAI API. Uploaded PDFs will be sent for processing. Please do not upload any confidential data.")
+    st.info("""
+        📚 **Welcome to TrustQuiz** - Generate trustworthy practice questions from your course materials.
+        
+        ⚠️ **Privacy Notice**: PDFs are processed via OpenAI API. Do not upload confidential documents.
+    """)
     
     # Sidebar for settings
     with st.sidebar:
-        st.header("⚙️ Settings")
+        st.header("Settings")
         
         # API Key input
         api_key = st.text_input(
@@ -69,29 +215,33 @@ def main():
         
         if api_key:
             if check_api_key(api_key):
-                st.success("✓ API Key valid")
+                st.success("✅ API Key valid")
             else:
-                st.error("✗ API Key invalid")
+                st.error("❌ API Key invalid")
+        else:
+            st.info("👆 Enter your OpenAI API key to get started")
+            st.caption("Get one at: platform.openai.com/api-keys")
+            st.caption("💰 Cost: ~$0.30 for 20 questions")
         
         
         st.divider()
         
         # Stats
         if st.session_state.pdf_content:
-            st.subheader("📄 Document Info")
+            st.subheader("Document Info")
             if st.session_state.pdf_metadata:
                 st.write(f"**Pages:** {st.session_state.pdf_metadata.get('pages', 'N/A')}")
                 st.write(f"**Title:** {st.session_state.pdf_metadata.get('title', 'Unknown')}")
         
         if st.session_state.questions:
-            st.subheader("📊 Progress")
+            st.subheader("Progress")
             answered = len(st.session_state.user_answers)
             total = len(st.session_state.questions)
             st.progress(answered / total if total > 0 else 0)
             st.write(f"{answered}/{total} answered")
     
     # Main content area with tabs
-    tab1, tab2, tab3 = st.tabs(["📤 Upload", "✨ Generate", "📝 Practice"])
+    tab1, tab2, tab3 = st.tabs(["Upload", "Generate", "Practice"])
     
     with tab1:
         upload_tab()
@@ -104,7 +254,7 @@ def main():
 
 
 def upload_tab():
-    st.header("📚 Upload Your Study Material")
+    st.header("Upload Your Study Material")
     st.write("Upload your lecture slides, notes, or course PDFs to generate personalized practice questions.")
     
     uploaded_file = st.file_uploader(
@@ -123,7 +273,7 @@ def upload_tab():
         with open(file_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
         
-        st.success(f"✓ Uploaded: {uploaded_file.name}")
+        st.success(f"Uploaded: {uploaded_file.name}")
         
         # Parse the PDF
         with st.spinner("Extracting text from PDF..."):
@@ -138,13 +288,13 @@ def upload_tab():
                 detected = extract_learning_objectives(pages_content)
                 st.session_state.detected_objectives = detected
                 
-                st.success(f"✅ Material loaded! Found {total_pages} pages. Ready to generate questions. 📚")
+                st.success(f"Material loaded! Found {total_pages} pages. Ready to generate questions.")
                 
                 if detected:
-                    st.success(f"🔍 Automatically detected {len(detected)} learning objectives!")
+                    st.success(f"Automatically detected {len(detected)} learning objectives!")
                 
                 # Show preview
-                with st.expander("📄 Preview extracted content"):
+                with st.expander("Preview extracted content"):
                     preview_pages = min(3, total_pages)
                     for i in range(1, preview_pages + 1):
                         st.subheader(f"Page {i}")
@@ -154,27 +304,27 @@ def upload_tab():
                 st.error(f"Error parsing PDF: {str(e)}")
     
     elif st.session_state.pdf_content:
-        st.success(f"✓ Document loaded: {st.session_state.pdf_metadata.get('pages', 'N/A')} pages")
+        st.success(f"Document loaded: {st.session_state.pdf_metadata.get('pages', 'N/A')} pages")
         
         # Add button to proceed
         st.markdown("---")
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button("🚀 Continue to Generate Questions", type="primary", use_container_width=True):
+            if st.button("Continue to Generate Questions", type="primary", use_container_width=True):
                 # Switch to generate tab
                 st.rerun()
 
 
 def generate_tab(num_questions, topic_filter):
     """Generate exam questions from uploaded content."""
-    st.header("🧠 Start Practice Session")
+    st.header("Start Practice Session")
     
     if not st.session_state.pdf_content:
-        st.warning("⚠️ Please upload a PDF file first in the Upload tab.")
+        st.warning("Please upload a PDF file first in the Upload tab.")
         return
     
     if not st.session_state.api_key:
-        st.warning("⚠️ Please enter your OpenAI API key in the sidebar.")
+        st.warning("Please enter your OpenAI API key in the sidebar.")
         return
     
     # Number of questions selector (moved from sidebar)
@@ -187,28 +337,28 @@ def generate_tab(num_questions, topic_filter):
     )
     
     if not st.session_state.pdf_content:
-        st.warning("⚠️ Please upload a PDF file first in the Upload tab.")
+        st.warning("Please upload a PDF file first in the Upload tab.")
         return
     
     if not st.session_state.api_key:
-        st.warning("⚠️ Please enter your OpenAI API key in the sidebar.")
+        st.warning("Please enter your OpenAI API key in the sidebar.")
         return
     
-    st.markdown("Generate personalized practice questions to test your understanding of the material.")
+    st.markdown("<p style='font-size: 1.1em;'>Generate personalized practice questions to test your understanding of the material.</p>", unsafe_allow_html=True)
     
     # Show detected objectives if found
     if st.session_state.detected_objectives:
-        with st.expander("🔍 Detected learning objectives (auto-detected)", expanded=False):
+        with st.expander("Detected learning objectives (auto-detected)", expanded=False):
             st.info("The tool found these potential learning objectives in the PDF:")
             for obj in st.session_state.detected_objectives:
                 st.markdown(f"- {obj}")
             
-            if st.button("📋 Use detected objectives"):
+            if st.button("Use detected objectives"):
                 st.session_state.prefilled_objectives = "\n".join(f"- {obj}" for obj in st.session_state.detected_objectives)
                 st.rerun()
     
     # Lernziele Eingabe (optional)
-    st.subheader("🎯 Learning Objectives (optional)")
+    st.subheader("Learning Objectives (optional)")
     
     # Pre-fill if user clicked button
     default_value = st.session_state.prefilled_objectives
@@ -226,15 +376,15 @@ def generate_tab(num_questions, topic_filter):
     col1, col2 = st.columns([3, 1])
     
     with col1:
-        st.info(f"📚 Document ready: {st.session_state.pdf_metadata.get('pages', 'N/A')} pages")
+        st.info(f"Document ready: {st.session_state.pdf_metadata.get('pages', 'N/A')} pages")
     
     with col2:
-        if st.button("🚀 Start Practice", type="primary", use_container_width=True):
+        if st.button("Start Practice", type="primary", use_container_width=True):
             generate_questions_action(num_questions, topic_filter if topic_filter else None, learning_objectives)
     
     # Show existing questions if any
     if st.session_state.questions:
-        st.success(f"✓ {len(st.session_state.questions)} questions generated")
+        st.success(f"{len(st.session_state.questions)} questions generated")
         
         with st.expander("Preview generated questions"):
             for idx, q in enumerate(st.session_state.questions, 1):
@@ -245,7 +395,7 @@ def generate_tab(num_questions, topic_filter):
 
 def generate_questions_action(num_questions, topic_filter, learning_objectives=None):
     """Action to generate questions using the LLM."""
-    with st.spinner("🤖 Generating questions... This may take 15-30 seconds..."):
+    with st.spinner("Generating questions... This may take 15-30 seconds..."):
         try:
             # Store learning objectives in session state for later reference
             if learning_objectives:
@@ -265,7 +415,7 @@ def generate_questions_action(num_questions, topic_filter, learning_objectives=N
             st.session_state.user_answers = {}
             st.session_state.show_feedback = {}
             
-            st.success(f"🎉 Your practice session is ready! {len(questions)} questions generated!")
+            st.success(f"Your practice session is ready! {len(questions)} questions generated!")
             st.balloons()
             
         except Exception as e:
@@ -274,10 +424,10 @@ def generate_questions_action(num_questions, topic_filter, learning_objectives=N
 
 def practice_tab():
     """Practice with generated questions."""
-    st.header("📊 Check Your Knowledge")
+    st.header("Check Your Knowledge")
     
     if not st.session_state.questions:
-        st.warning("⚠️ Please generate questions first in the Generate tab.")
+        st.warning("Please generate questions first in the Generate tab.")
         return
     
     questions = st.session_state.questions
@@ -287,7 +437,7 @@ def practice_tab():
     col1, col2, col3 = st.columns([1, 3, 1])
     
     with col1:
-        if st.button("⬅️ Previous") and st.session_state.current_question_idx > 0:
+        if st.button("Previous") and st.session_state.current_question_idx > 0:
             st.session_state.current_question_idx -= 1
             st.rerun()
     
@@ -295,7 +445,7 @@ def practice_tab():
         st.markdown(f"<h4 style='text-align: center;'>Question {st.session_state.current_question_idx + 1} of {total_questions}</h4>", unsafe_allow_html=True)
     
     with col3:
-        if st.button("Next ➡️") and st.session_state.current_question_idx < total_questions - 1:
+        if st.button("Next") and st.session_state.current_question_idx < total_questions - 1:
             st.session_state.current_question_idx += 1
             st.rerun()
     
@@ -305,7 +455,7 @@ def practice_tab():
     current_q = questions[st.session_state.current_question_idx]
     q_id = st.session_state.current_question_idx
     
-    st.subheader(current_q['question'])
+    st.markdown(f"<h3 style='color: #1a1a1a; font-size: 1.6em;'>{current_q['question']}</h3>", unsafe_allow_html=True)
     
     # Answer options
     user_answer = st.radio(
@@ -318,7 +468,7 @@ def practice_tab():
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("✅ Check Answer", type="primary", disabled=user_answer is None):
+        if st.button("Check Answer", type="primary", disabled=user_answer is None):
             if user_answer:
                 result = grade_answer(
                     question=current_q['question'],
@@ -337,7 +487,7 @@ def practice_tab():
                 st.rerun()
     
     with col2:
-        if st.button("📄 Show Source"):
+        if st.button("Show Source"):
             show_source_modal(current_q)
     
     # Show feedback if answer has been checked
@@ -345,9 +495,9 @@ def practice_tab():
         result = st.session_state.user_answers[q_id]
         
         if result['is_correct']:
-            st.success(f"✓ {result['feedback']}")
+            st.success(f"{result['feedback']}")
         else:
-            st.error(f"✗ {result['feedback']}")
+            st.error(f"{result['feedback']}")
     
     # Progress summary at bottom
     st.divider()
@@ -361,33 +511,34 @@ def show_source_modal(question):
         st.markdown("""
         <style>
         .source-card {
-            background-color: #f0f8ff;
-            border-left: 4px solid #4CAF50;
+            background-color: #f5f5f5;
+            border-left: 4px solid #e67e22;
             padding: 15px;
             border-radius: 5px;
             margin: 10px 0;
         }
         .source-page {
-            color: #2c3e50;
+            color: #1a1a1a;
             font-weight: bold;
+            font-size: 1.1em;
         }
         </style>
         """, unsafe_allow_html=True)
         
         st.markdown(f"""
         <div class="source-card">
-            <h4 style='margin-top: 0; color: #2c3e50;'>📄 Source Reference</h4>
+            <h4 style='margin-top: 0; color: #2c3e50;'>Source Reference</h4>
             <p><span class="source-page">Page: {question['source_page']}</span></p>
         </div>
         """, unsafe_allow_html=True)
         
         if 'source_excerpt' in question and question['source_excerpt']:
-            st.markdown("**📖 Source Excerpt:**")
+            st.markdown("**Source Excerpt:**")
             st.info(question['source_excerpt'])
     
     # Show full page content
     if st.session_state.pdf_content and question['source_page'] in st.session_state.pdf_content:
-        with st.expander("📑 View full page content"):
+        with st.expander("View full page content"):
             page_text = st.session_state.pdf_content[question['source_page']]
             st.text_area(
                 f"Page {question['source_page']} content:",
@@ -439,13 +590,13 @@ def display_summary():
         stats = calculate_performance_stats(results)
         recommendation = get_study_recommendation(stats['percentage'])
         
-        st.markdown("### 📚 Next Steps")
+        st.markdown("### Next Steps")
         st.info(recommendation)
         
         # Action buttons
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("🔄 Generate More Questions", use_container_width=True):
+            if st.button("Generate More Questions", use_container_width=True):
                 # Reset for new practice session
                 st.session_state.questions = []
                 st.session_state.user_answers = {}
@@ -453,8 +604,8 @@ def display_summary():
                 st.session_state.current_question_idx = 0
                 st.rerun()
         with col2:
-            if st.button("📄 Review Source Material", use_container_width=True):
-                st.info("💡 Tip: Re-read the sections related to your weak areas in the original PDF!")
+            if st.button("Review Source Material", use_container_width=True):
+                st.info("Tip: Re-read the sections related to your weak areas in the original PDF!")
 
 
 if __name__ == "__main__":
